@@ -73,6 +73,8 @@ export default {
   html, body {
     margin: 0;
     padding: 0;
+    background: #000;
+    color: #a3a3a3;
   }
   #app {
     display: flex;
@@ -80,15 +82,15 @@ export default {
     align-items: center;
   }
   .error {
-    background: red;
-    color: white;
+    background: #9c0000;
     width: 100%;
     padding: 1rem;
   }
   button {
     width: 80%;
-    background: white;
-    border: 1px black solid;
+    background: black;
+    color: #a3a3a3;
+    border: 1px #a3a3a3 solid;
     padding: 1rem;
     margin: 1rem;
   }
