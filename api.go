@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"time"
 )
 
 func main() {
@@ -72,7 +71,7 @@ type State struct {
 }
 
 type Schedule struct {
-	At time.Time
+	At string // e.g. "15:00"
 	On bool
 }
 

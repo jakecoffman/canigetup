@@ -9,12 +9,28 @@
     <div class="error" v-if="error && error !== true">
       Error: {{error}}
     </div>
-    <div>
-      Currently <span v-if="On">ON</span><span v-else>OFF</span>
+    <h3>Status</h3>
+    <button class="main-btn" @click="On = true; put()" :class="{selected: On}">On</button>
+    <button class="main-btn" @click="On = false; put()" :class="{selected: !On}">Off</button>
+    <button class="main-btn" @click="On = !On; put()">Toggle</button>
+
+    <h3>Schedules</h3>
+    <div v-if="!Schedules || !Schedules.length">
+      No schedules
     </div>
-    <button @click="On = true; put()">On</button>
-    <button @click="On = false; put()">Off</button>
-    <button @click="On = !On; put()">Toggle</button>
+    <div v-for="(schedule, index) of Schedules" :key="schedule.At" class="mb-1">
+      <span>{{schedule.At}}</span>
+      <span class="mx-1">Turn <span v-if="schedule.On">on</span><span v-else>off</span></span>
+      <button @click="remove(index)">Remove</button>
+    </div>
+
+    <h3>Add a new schedule</h3>
+    <div class="add-schedule">
+      <input type="time" v-model="newScheduleAt">
+      <button @click="newScheduleOn = true" :class="{selected: newScheduleOn}">On</button>
+      <button @click="newScheduleOn = false"  :class="{selected: newScheduleOn === false}">Off</button>
+      <button @click="add()">Add</button>
+    </div>
   </div>
 </template>
 
@@ -26,7 +42,9 @@ export default {
       On: false,
       Schedules: [],
       error: null,
-      loading: true
+      loading: true,
+      newScheduleAt: null,
+      newScheduleOn: null
     }
   },
   methods: {
@@ -59,6 +77,30 @@ export default {
         On: this.On,
         Schedules: this.Schedules
       })
+    },
+    async add() {
+      if (this.newScheduleAt === null) {
+        return
+      }
+      if (this.newScheduleOn === null) {
+        return
+      }
+
+      this.loading = true
+      if (this.Schedules === null) {
+        this.Schedules = []
+      }
+      this.Schedules.push({At: this.newScheduleAt, On: this.newScheduleOn})
+      const response = await fetch("/api/state", {method: "PUT", body: this.state()})
+      await this.handleResponse(response)
+      this.newScheduleAt = null
+      this.newScheduleOn = null
+    },
+    async remove(index) {
+      this.loading = true
+      this.Schedules.splice(index, 1)
+      const response = await fetch("/api/state", {method: "PUT", body: this.state()})
+      await this.handleResponse(response)
     }
   },
   async created() {
@@ -75,6 +117,7 @@ export default {
     padding: 0;
     background: #000;
     color: #a3a3a3;
+    font-size: 16pt;
   }
   #app {
     display: flex;
@@ -87,12 +130,22 @@ export default {
     padding: 1rem;
   }
   button {
-    width: 80%;
     background: black;
     color: #a3a3a3;
     border: 1px #a3a3a3 solid;
+    font-size: 16pt;
+  }
+  input {
+    background: black;
+    color: #a3a3a3;
+    border: 1px #a3a3a3 solid;
+    font-size: 16pt;
+  }
+
+  .main-btn {
+    width: 80%;
     padding: 1rem;
-    margin: 1rem;
+    margin-bottom: 1rem;
   }
 
   .loader {
@@ -156,4 +209,25 @@ export default {
     opacity: 0;
   }
 
+  .status {
+    margin-top: 2rem;
+  }
+
+  .add-schedule {
+    display: flex;
+  }
+
+  .selected {
+    background: #a3a3a3;
+    color: black;
+  }
+
+  .mx-1 {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  .mb-1 {
+    margin-bottom: 0.5rem;
+  }
 </style>
