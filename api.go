@@ -2,35 +2,61 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/stianeikeland/go-rpio/v4"
+	"github.com/jakecoffman/canigetup/pi"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 )
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	if err := rpio.Open(); err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		if err := rpio.Close(); err != nil {
-			log.Println(err)
+	rpi := pi.New()
+	defer rpi.Close()
+
+	state := NewState(rpi)
+	lock := sync.RWMutex{}
+
+	go func() {
+		before, err := timeToMinutes(time.Now().Format("15:04"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		for {
+			time.Sleep(1 * time.Second)
+			now, err := timeToMinutes(time.Now().Format("15:04"))
+			if err != nil {
+				log.Fatal(err)
+			}
+			if now == before {
+				continue
+			}
+			lock.Lock()
+			for _, schedule := range state.Schedules {
+				t, err := timeToMinutes(schedule.At)
+				if err != nil {
+					log.Fatal(err)
+				}
+				if before < t && now == t {
+					state.On = schedule.On
+				}
+			}
+			lock.Unlock()
+			before = now
 		}
 	}()
 
-	pin := rpio.Pin(15)
-	pin.Output()
-
-	state := NewState(pin)
-
 	r := http.NewServeMux()
-
 	r.HandleFunc("/api/state", func(writer http.ResponseWriter, request *http.Request) {
 		switch request.Method {
 		case http.MethodGet:
+			lock.RLock()
+			defer lock.RUnlock()
+
 			jsonMessage(state, writer)
 		case http.MethodPut:
 			var payload State
@@ -40,8 +66,20 @@ func main() {
 				jsonMessage("Failed to decode", writer)
 				return
 			}
+
+			for _, schedule := range payload.Schedules {
+				_, err := timeToMinutes(schedule.At)
+				if err != nil {
+					writer.WriteHeader(400)
+					jsonMessage("Invalid time", writer)
+					return
+				}
+			}
+
+			lock.Lock()
+			defer lock.Unlock()
+
 			state.Schedules = payload.Schedules
-			// TODO handle schedule changes
 			state.Turn(payload.On)
 			jsonMessage(state, writer)
 		}
@@ -64,10 +102,9 @@ func jsonMessage(msg interface{}, writer http.ResponseWriter) {
 }
 
 type State struct {
-	sync.RWMutex
 	On bool
 	Schedules []Schedule
-	pin rpio.Pin
+	pi *pi.Pi
 }
 
 type Schedule struct {
@@ -75,11 +112,9 @@ type Schedule struct {
 	On bool
 }
 
-func NewState(pin rpio.Pin) *State {
-	s := &State{pin: pin}
-	s.Lock()
+func NewState(rpi *pi.Pi) *State {
+	s := &State{pi: rpi}
 	s.load()
-	s.Unlock()
 	return s
 }
 
@@ -108,21 +143,33 @@ func (s *State) load() {
 		log.Println("failed to deserialize state", err)
 	}
 	if s.On	{
-		s.pin.High()
+		s.pi.High()
 	} else {
-		s.pin.Low()
+		s.pi.Low()
 	}
-	// TODO handle schedule
 }
 
 func (s *State) Turn(on bool) {
-	s.Lock()
-	defer s.Unlock()
 	s.On = on
 	if s.On {
-		s.pin.High()
+		s.pi.High()
 	} else {
-		s.pin.Low()
+		s.pi.Low()
 	}
 	s.save()
+}
+
+func timeToMinutes(time string) (int, error) {
+	splitTime := strings.Split(time, ":")
+	hours, err := strconv.Atoi(splitTime[0])
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	minutes, err := strconv.Atoi(splitTime[1])
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
+	return hours * 60 + minutes, nil
 }
