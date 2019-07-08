@@ -6,7 +6,7 @@ import (
 )
 
 type Pi struct {
-	pin rpio.Pin
+	rpio.Pin
 }
 
 func New() *Pi {
@@ -25,12 +25,4 @@ func (p *Pi) Close() {
 	if err != nil {
 		log.Println(err)
 	}
-}
-
-func (p *Pi) High() {
-
-}
-
-func (p *Pi) Low() {
-
 }
