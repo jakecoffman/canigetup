@@ -16,7 +16,7 @@ func New() *Pi {
 	pin := rpio.Pin(15)
 	pin.Output()
 	return &Pi{
-		pin: pin,
+		Pin: pin,
 	}
 }
 
