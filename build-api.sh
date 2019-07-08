@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 GOOS=linux GOARCH=arm go build
 scp canigetup pi@192.168.1.15:canigetup2
 ssh pi@192.168.1.15 <<eof
