@@ -42,7 +42,7 @@ func main() {
 					log.Fatal(err)
 				}
 				if before < t && now == t {
-					state.On = schedule.On
+					state.Turn(schedule.On)
 				}
 			}
 			lock.Unlock()
